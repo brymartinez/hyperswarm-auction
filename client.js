@@ -3,6 +3,7 @@ const Hyperswarm = require("hyperswarm");
 const DHT = require("hyperdht");
 const crypto = require("crypto");
 const { DataStore } = require("./datastore");
+const { CLI } = require("./cli");
 
 /**
  * This acts as both RPC client and server.
@@ -97,7 +98,7 @@ class Client {
     for (const publicKey of publicKeysArray) {
       if (publicKey !== this.rpcServerPublicKey) {
         const client = this.RPC.connect(Buffer.from(publicKey, "hex"));
-        console.log("##Connected to client.");
+        console.debug("##DEBUG Connected to client.");
         this._clients.push(client);
       }
     }
@@ -121,6 +122,8 @@ class Client {
     rpcServer.respond("bid", this.handleBid);
     this.handleClose = this.handleClose.bind(this);
     rpcServer.respond("close", this.handleClose);
+    const cli = new CLI(this);
+    await cli.prompt();
   }
 
   async startClient() {
