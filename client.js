@@ -160,23 +160,36 @@ class Client {
       `${jsonData.itemName}_top_bid`,
       JSON.stringify({
         price: jsonData.price,
-        auctionerId: jsonData.auctionerId,
       })
     );
 
     console.log(
       `Client#${jsonData.auctionerId} has opened an auction for item "${jsonData.itemName}" for ${jsonData.price}USDT`
     );
+    process.stdout.write("> ");
   }
 
   /**
    *
    *
-   * @param {string} data
+   * @param {string} data of format { itemName: string, price: number, bidderId: string }
    * @memberof Client
    */
   async handleBid(data) {
     const jsonData = JSON.parse(data);
+
+    await datastore.set(
+      `${jsonData.itemName}_top_bid`,
+      JSON.stringify({
+        price: jsonData.price,
+        bidderId: jsonData.bidderId,
+      })
+    );
+
+    console.log(
+      `Client#${jsonData.bidderId} has bid ${jsonData.price}USDT for item "${jsonData.itemName}"`
+    );
+    process.stdout.write("> ");
   }
 
   /**
@@ -196,7 +209,7 @@ class Client {
    */
   async onOpen(itemName, price) {
     // { price: number, auctionerId: string }
-    if (this._hasOpenAuction) {
+    if (!this._hasOpenAuction) {
       await datastore.set(
         itemName,
         JSON.stringify({ price, auctionerId: this.rpcServerPublicKey })
@@ -218,7 +231,40 @@ class Client {
   }
 
   async onBid(itemName, price) {
-    awai;
+    const itemKey = `${itemName}_top_bid`;
+    let result = await datastore.get(itemKey);
+
+    if (!result) {
+      // Impossible case, since we process all broadcasted bids on handleBid() and initialize on handleOpen()
+      console.error(`Bid failed. Item does not exist.`);
+      process.stdout.write("> ");
+      return;
+    }
+
+    const jsonData = JSON.parse(result);
+
+    if (jsonData.price >= price) {
+      console.error(`Bid failed. Expected > ${jsonData.price}, got ${price}`);
+      process.stdout.write("> ");
+      return;
+    }
+
+    await datastore.set(
+      itemKey,
+      JSON.stringify({
+        bidderId: this.rpcServerPublicKey,
+        price,
+      })
+    );
+
+    await this.broadcast("bid", {
+      itemName,
+      price,
+      bidderId: this.rpcServerPublicKey,
+    });
+
+    console.log(`Bid for item ${itemName} for ${price}USDT has been posted.`);
+    process.stdout.write("> ");
   }
 
   async onClose(itemName) {
