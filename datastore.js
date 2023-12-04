@@ -14,6 +14,10 @@ class DataStore {
     });
   }
 
+  async ready() {
+    return hbee.ready();
+  }
+
   async get(key) {
     const entry = await hbee.get(key);
 
