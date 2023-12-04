@@ -11,6 +11,7 @@ A P2P auction example using Hyperswarm RPC, HyperDHT, Hypercores, and Hyperbee.
 
 ## Notes
  - The Hyperswarm server is only used for saving public keys and broadcasting it once a new client connects. It does not communicate otherwise with different peers.
+ - Registered remote public keys are deleted once the server is deleted.
  - The DHT is bootstrapped under `server.js`, not via CLI
  - There's no "What auction did I just miss?" feature. Once you connect, you can only receive bid msgs and new open auction msgs.
  - Each client manages its own Hyperbee (hence the `crypto.randomBytes(4)` call on the Hypercore on `client.js`), and it's volatile. Data will be lost on disconnection.
@@ -22,6 +23,7 @@ A P2P auction example using Hyperswarm RPC, HyperDHT, Hypercores, and Hyperbee.
 ## Pending
  - Input validation on CLI
  - Handling of duplicate item names
+ - Handle on client disconnect
 
 ## Issues
  - `node.lookup`/`node.announce` from [HyperDHT Docs](https://docs.holepunch.to/building-blocks/hyperdht#additional-peer-discovery) does not return the object specified.
