@@ -17,12 +17,10 @@ A P2P auction example using Hyperswarm RPC, HyperDHT, Hypercores, and Hyperbee.
  - Each client manages its own Hyperbee (hence the `crypto.randomBytes(4)` call on the Hypercore on `client.js`), and it's volatile. Data will be lost on disconnection.
  - There are quite a bit of JSDocs comments in here so I can work a bit safer.
  - On client disconnect, we write to the Swarm server so it can remove the disconnected public key from the list.
+ - Item uniqueness follows a form of "tag", i.e. <itemName>#<random 4 characters>. Example: pic#65ab
 
 ## What's Missing?
  - There's a need for a Hyperswarm server to manage RPC Remote public keys. Theoretically, it can be managed via peer discovery (See Issues below) on a specific topic and iterating over the public keys returned by that stream on `node.annouce()`. Still figuring out an alternative solution to this.
-
-## Pending
- - Handling of duplicate item names
 
 ## Issues
  - `node.lookup`/`node.announce` from [HyperDHT Docs](https://docs.holepunch.to/building-blocks/hyperdht#additional-peer-discovery) does not return the object specified.
