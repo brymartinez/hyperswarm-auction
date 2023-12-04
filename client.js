@@ -23,6 +23,8 @@ class Client {
     this._clients = [];
     /** @type {string} */
     this._publicKeys = [];
+    /** @type {boolean} */
+    this._hasOpenAuction = false;
   }
 
   async init() {
@@ -118,8 +120,6 @@ class Client {
    * @memberof Client
    */
   async broadcast(event, message) {
-    console.log("##DEBUG clients array length", this._clients.length);
-
     for (const client of this._clients) {
       await client.request(event, Buffer.from(JSON.stringify(message)));
     }
@@ -196,26 +196,40 @@ class Client {
    */
   async onOpen(itemName, price) {
     // { price: number, auctionerId: string }
-    await datastore.set(
-      itemName,
-      JSON.stringify({ price, auctionerId: this.rpcServerPublicKey })
-    );
+    if (this._hasOpenAuction) {
+      await datastore.set(
+        itemName,
+        JSON.stringify({ price, auctionerId: this.rpcServerPublicKey })
+      );
 
-    await this.broadcast("open", {
-      itemName,
-      price,
-      auctionerId: this.rpcServerPublicKey,
-    });
+      await this.broadcast("open", {
+        itemName,
+        price,
+        auctionerId: this.rpcServerPublicKey,
+      });
 
-    console.log(
-      `Auction for item ${itemName} has been opened for ${price}USDT.`
-    );
-    process.stdout.write("> ");
+      this._hasOpenAuction = true;
+
+      console.log(
+        `Auction for item ${itemName} has been opened for ${price}USDT.`
+      );
+      process.stdout.write("> ");
+    }
   }
 
-  async onBid(itemName, price) {}
+  async onBid(itemName, price) {
+    awai;
+  }
 
-  async onClose(itemName) {}
+  async onClose(itemName) {
+    if (!this._hasOpenAuction) {
+      console.error("You have no open auctions.");
+      process.stdout.write("> ");
+      return;
+    }
+
+    this._hasOpenAuction = false;
+  }
 }
 
 module.exports = {
