@@ -21,6 +21,8 @@ class Client {
     this.rpcServerPublicKey = null;
     /** @type {RPC.Client[]} */
     this._clients = [];
+    /** @type {string} */
+    this._publicKeys = [];
   }
 
   async init() {
@@ -96,10 +98,14 @@ class Client {
 
   async registerPublicKeys(publicKeysArray) {
     for (const publicKey of publicKeysArray) {
-      if (publicKey !== this.rpcServerPublicKey) {
+      if (
+        publicKey !== this.rpcServerPublicKey &&
+        !this._publicKeys.includes(publicKey)
+      ) {
         const client = this.RPC.connect(Buffer.from(publicKey, "hex"));
         console.debug("##DEBUG Connected to client.");
         this._clients.push(client);
+        this._publicKeys.push(publicKey);
       }
     }
   }
@@ -112,6 +118,8 @@ class Client {
    * @memberof Client
    */
   async broadcast(event, message) {
+    console.log("##DEBUG clients array length", this._clients.length);
+
     for (const client of this._clients) {
       await client.request(event, Buffer.from(JSON.stringify(message)));
     }
@@ -161,9 +169,25 @@ class Client {
     );
   }
 
-  async handleBid() {}
+  /**
+   *
+   *
+   * @param {string} data
+   * @memberof Client
+   */
+  async handleBid(data) {
+    const jsonData = JSON.parse(data);
+  }
 
-  async handleClose() {}
+  /**
+   *
+   *
+   * @param {string} data
+   * @memberof Client
+   */
+  async handleClose(data) {
+    const jsonData = JSON.parse(data);
+  }
 
   /*
    *
@@ -171,8 +195,11 @@ class Client {
    *
    */
   async onOpen(itemName, price) {
-    // { price: number }
-    await datastore.set(itemName, JSON.stringify({ price }));
+    // { price: number, auctionerId: string }
+    await datastore.set(
+      itemName,
+      JSON.stringify({ price, auctionerId: this.rpcServerPublicKey })
+    );
 
     await this.broadcast("open", {
       itemName,
