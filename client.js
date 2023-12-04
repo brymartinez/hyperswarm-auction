@@ -20,7 +20,7 @@ class Client {
 
     await datastore.ready();
 
-    let dhtSeed = (await hbee.get("dht-seed"))?.value;
+    let dhtSeed = await datastore.get("dht-seed");
     if (!dhtSeed) {
       // not found, generate and store in db
       dhtSeed = crypto.randomBytes(32);
@@ -35,7 +35,7 @@ class Client {
     await dht.ready();
 
     // resolve rpc server seed for key pair
-    let rpcSeed = (await hbee.get("rpc-seed"))?.value;
+    let rpcSeed = await datastore.get("rpc-seed");
     if (!rpcSeed) {
       rpcSeed = crypto.randomBytes(32);
       await datastore.set("rpc-seed", rpcSeed);
