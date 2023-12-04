@@ -27,15 +27,15 @@ class CLI {
       switch (args[0]) {
         case "open":
           // open item price
-          await client.handleOpen(args[1], parseFloat(args[2]));
+          await client.onOpen(args[1], parseFloat(args[2]));
           break;
         case "bid":
           // bid item price
-          await client.handleBid(args[1], parseFloat(args[2]));
+          await client.onBid(args[1], parseFloat(args[2]));
           break;
         case "close":
           // close item
-          await client.handleClose(args[1]);
+          await client.onClose(args[1]);
           break;
       }
 

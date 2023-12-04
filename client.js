@@ -13,6 +13,8 @@ class Client {
   constructor() {
     /** @type {string} */
     this.rpcServerPublicKey = null;
+    /** @type {RPC.Client[]} */
+    this._clients = [];
   }
 
   async init() {
@@ -77,6 +79,7 @@ class Client {
     console.log("##DEBUG JSON Data received", jsonData);
     switch (jsonData.mode) {
       case "public-keys":
+        // NOTE - Will be received more than once. One on handshake, and every succeeding connection
         // publicKeysArray: string[]
         await this.onPublicKeys(jsonData.publicKeys);
         break;
@@ -87,15 +90,37 @@ class Client {
   }
 
   async onPublicKeys(publicKeysArray) {
-    console.log("##DEBUG Public Keys", publicKeysArray);
+    await this.registerPublicKeys(publicKeysArray);
+  }
+
+  async registerPublicKeys(publicKeysArray) {
+    for (const publicKey of publicKeysArray) {
+      if (publicKey !== this.rpcServerPublicKey) {
+        const client = this.RPC.connect(Buffer.from(publicKey, "hex"));
+        console.log("##Connected to client.");
+        this._clients.push(client);
+      }
+    }
+  }
+
+  async broadcast(event, message) {
+    for (const client of this._clients) {
+      await client.request(event, Buffer.from(JSON.stringify(message)));
+    }
   }
 
   async startServer(rpcSeed, dht) {
     console.log("##DEBUG Starting RPC Server...");
-    const rpc = new RPC({ seed: rpcSeed, dht });
-    const rpcServer = rpc.createServer();
+    this.RPC = new RPC({ seed: rpcSeed, dht });
+    const rpcServer = this.RPC.createServer();
     await rpcServer.listen();
     this.rpcServerPublicKey = rpcServer.publicKey.toString("hex");
+    this.handleOpen = this.handleOpen.bind(this);
+    rpcServer.respond("open", this.handleOpen);
+    this.handleBid = this.handleBid.bind(this);
+    rpcServer.respond("bid", this.handleBid);
+    this.handleClose = this.handleClose.bind(this);
+    rpcServer.respond("close", this.handleClose);
   }
 
   async startClient() {
@@ -106,14 +131,25 @@ class Client {
 
   /*
    *
+   * RPC Methods
+   *
+   */
+  async handleOpen() {}
+
+  async handleBid() {}
+
+  async handleClose() {}
+
+  /*
+   *
    * CLI Methods
    *
    */
-  async handleOpen(itemName, price) {}
+  async onOpen(itemName, price) {}
 
-  async handleBid(itemName, price) {}
+  async onBid(itemName, price) {}
 
-  async handleClose(itemName) {}
+  async onClose(itemName) {}
 }
 
 module.exports = {
