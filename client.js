@@ -1,4 +1,5 @@
 const RPC = require("@hyperswarm/rpc");
+const Hyperswarm = require("hyperswarm");
 const DHT = require("hyperdht");
 const crypto = require("crypto");
 const { DataStore } = require("./datastore");
@@ -9,7 +10,10 @@ const { DataStore } = require("./datastore");
  * @class Client
  */
 class Client {
-  constructor() {}
+  constructor() {
+    /** @type {string} */
+    this.rpcServerPublicKey = null;
+  }
 
   async init() {
     // resolved distributed hash table seed for key pair
@@ -42,6 +46,48 @@ class Client {
     }
 
     await this.startServer(rpcSeed, dht);
+
+    console.log("##DEBUG Starting Swarm Client...");
+    const swarm = new Hyperswarm({ dht });
+    swarm.join(Buffer.alloc(32).fill("auction"), {
+      client: true,
+      server: false,
+    });
+
+    this.handleConnection = this.handleConnection.bind(this);
+    swarm.on("connection", this.handleConnection);
+  }
+
+  async handleConnection(conn, info) {
+    this.serverConnection = conn;
+    this.handleData = this.handleData.bind(this);
+    this.serverConnection.on("data", this.handleData);
+    // Client already connected to swarm, announce new peer
+    console.log("##DEBUG Writing new-peer...");
+    this.serverConnection.write(
+      JSON.stringify({
+        mode: "new-peer",
+        publicKey: this.rpcServerPublicKey,
+      })
+    );
+  }
+
+  async handleData(data) {
+    const jsonData = JSON.parse(data);
+    console.log("##DEBUG JSON Data received", jsonData);
+    switch (jsonData.mode) {
+      case "public-keys":
+        // publicKeysArray: string[]
+        await this.onPublicKeys(jsonData.publicKeys);
+        break;
+      default:
+        console.error("Mode not found");
+        break;
+    }
+  }
+
+  async onPublicKeys(publicKeysArray) {
+    console.log("##DEBUG Public Keys", publicKeysArray);
   }
 
   async startServer(rpcSeed, dht) {
@@ -49,11 +95,12 @@ class Client {
     const rpc = new RPC({ seed: rpcSeed, dht });
     const rpcServer = rpc.createServer();
     await rpcServer.listen();
+    this.rpcServerPublicKey = rpcServer.publicKey.toString("hex");
   }
 
   async startClient() {
     console.log("##DEBUG Starting RPC Client...");
-    // TODO - Where to get serverPubKey
+    // TODO - Where to get serverPubKey - from Hyperswarm handshake?
     // const respRaw = await rpc.request(serverPubKey, "ping", payloadRaw);
   }
 
