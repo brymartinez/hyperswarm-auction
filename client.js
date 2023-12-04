@@ -5,6 +5,8 @@ const crypto = require("crypto");
 const { DataStore } = require("./datastore");
 const { CLI } = require("./cli");
 
+/** @type {DataStore} */
+let datastore;
 /**
  * This acts as both RPC client and server.
  *
@@ -12,6 +14,9 @@ const { CLI } = require("./cli");
  */
 class Client {
   constructor() {
+    datastore = new DataStore(
+      `./db/rpc-client-${crypto.randomBytes(4).toString("hex")}`
+    );
     /** @type {string} */
     this.rpcServerPublicKey = null;
     /** @type {RPC.Client[]} */
@@ -20,11 +25,6 @@ class Client {
 
   async init() {
     // resolved distributed hash table seed for key pair
-
-    const datastore = new DataStore(
-      `./db/rpc-client-${crypto.randomBytes(4).toString("hex")}`
-    );
-
     await datastore.ready();
 
     let dhtSeed = await datastore.get("dht-seed");
@@ -104,6 +104,13 @@ class Client {
     }
   }
 
+  /**
+   *
+   *
+   * @param {string} event
+   * @param {Record<string, unknown>} message
+   * @memberof Client
+   */
   async broadcast(event, message) {
     for (const client of this._clients) {
       await client.request(event, Buffer.from(JSON.stringify(message)));
@@ -126,18 +133,33 @@ class Client {
     await cli.prompt();
   }
 
-  async startClient() {
-    console.log("##DEBUG Starting RPC Client...");
-    // TODO - Where to get serverPubKey - from Hyperswarm handshake?
-    // const respRaw = await rpc.request(serverPubKey, "ping", payloadRaw);
-  }
-
   /*
    *
    * RPC Methods
    *
    */
-  async handleOpen() {}
+
+  /**
+   *
+   * @param {string} data of format { itemName: string, price: number, auctionerId: string }
+   * @memberof Client
+   */
+  async handleOpen(data) {
+    const jsonData = JSON.parse(data);
+
+    // Save this to local datastore
+    await datastore.set(
+      `${jsonData.itemName}_top_bid`,
+      JSON.stringify({
+        price: jsonData.price,
+        auctionerId: jsonData.auctionerId,
+      })
+    );
+
+    console.log(
+      `Client#${jsonData.auctionerId} has opened an auction for item "${jsonData.itemName}" for ${jsonData.price}USDT`
+    );
+  }
 
   async handleBid() {}
 
@@ -148,7 +170,21 @@ class Client {
    * CLI Methods
    *
    */
-  async onOpen(itemName, price) {}
+  async onOpen(itemName, price) {
+    // { price: number }
+    await datastore.set(itemName, JSON.stringify({ price }));
+
+    await this.broadcast("open", {
+      itemName,
+      price,
+      auctionerId: this.rpcServerPublicKey,
+    });
+
+    console.log(
+      `Auction for item ${itemName} has been opened for ${price}USDT.`
+    );
+    process.stdout.write("> ");
+  }
 
   async onBid(itemName, price) {}
 
