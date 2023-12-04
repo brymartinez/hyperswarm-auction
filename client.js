@@ -4,6 +4,7 @@ const DHT = require("hyperdht");
 const crypto = require("crypto");
 const { DataStore } = require("./datastore");
 const { CLI } = require("./cli");
+const Logger = require("./logger");
 
 /** @type {DataStore} */
 let datastore;
@@ -54,7 +55,7 @@ class Client {
 
     await this.startServer(rpcSeed, dht);
 
-    console.log("##DEBUG Starting Swarm Client...");
+    Logger.debug("##DEBUG Starting Swarm Client...");
     const swarm = new Hyperswarm({ dht });
     swarm.join(Buffer.alloc(32).fill("auction"), {
       client: true,
@@ -70,7 +71,7 @@ class Client {
     this.handleData = this.handleData.bind(this);
     this.serverConnection.on("data", this.handleData);
     // Client already connected to swarm, announce new peer
-    console.log("##DEBUG Writing new-peer...");
+    Logger.debug("##DEBUG Writing new-peer...");
     this.serverConnection.write(
       JSON.stringify({
         mode: "new-peer",
@@ -81,7 +82,7 @@ class Client {
 
   async handleData(data) {
     const jsonData = JSON.parse(data);
-    console.log("##DEBUG JSON Data received", jsonData);
+    Logger.debug("##DEBUG JSON Data received", jsonData);
     switch (jsonData.mode) {
       case "public-keys":
         // NOTE - Will be received more than once. One on handshake, and every succeeding connection
@@ -89,7 +90,7 @@ class Client {
         await this.onPublicKeys(jsonData.publicKeys);
         break;
       default:
-        console.error("Mode not found");
+        Logger.error("Mode not found");
         break;
     }
   }
@@ -105,7 +106,7 @@ class Client {
         !this._publicKeys.includes(publicKey)
       ) {
         const client = this.RPC.connect(Buffer.from(publicKey, "hex"));
-        console.debug("##DEBUG Connected to client.");
+        Logger.debug("##DEBUG Connected to client.");
         this._clients.push(client);
         this._publicKeys.push(publicKey);
       }
@@ -126,7 +127,7 @@ class Client {
   }
 
   async startServer(rpcSeed, dht) {
-    console.log("##DEBUG Starting RPC Server...");
+    Logger.debug("##DEBUG Starting RPC Server...");
     this.RPC = new RPC({ seed: rpcSeed, dht });
     const rpcServer = this.RPC.createServer();
     await rpcServer.listen();
@@ -163,7 +164,7 @@ class Client {
       })
     );
 
-    console.log(
+    Logger.log(
       `Client#${jsonData.auctionerId} has opened an auction for item "${jsonData.itemName}" for ${jsonData.price}USDT`
     );
     process.stdout.write("> ");
@@ -186,7 +187,7 @@ class Client {
       })
     );
 
-    console.log(
+    Logger.log(
       `Client#${jsonData.bidderId} has bid ${jsonData.price}USDT for item "${jsonData.itemName}"`
     );
     process.stdout.write("> ");
@@ -211,12 +212,12 @@ class Client {
 
     await datastore.delete(itemKey);
 
-    console.log(
+    Logger.log(
       `Client#${jsonData.bidderId} has bid ${jsonData.price}USDT for item "${jsonData.itemName}"`
     );
 
     if (jsonData.bidderId === this.rpcServerPublicKey) {
-      console.log("You are the WINNER!");
+      Logger.log("You are the WINNER!");
     }
 
     process.stdout.write("> ");
@@ -240,7 +241,7 @@ class Client {
 
       this._hasOpenAuction = true;
 
-      console.log(
+      Logger.debug(
         `Auction for item ${itemName} has been opened for ${price}USDT.`
       );
       process.stdout.write("> ");
@@ -280,7 +281,7 @@ class Client {
       bidderId: this.rpcServerPublicKey,
     });
 
-    console.log(`Bid for item ${itemName} for ${price}USDT has been posted.`);
+    Logger.log(`Bid for item ${itemName} for ${price}USDT has been posted.`);
     process.stdout.write("> ");
   }
 
@@ -312,7 +313,7 @@ class Client {
 
     await datastore.delete(itemKey);
 
-    console.log(
+    Logger.log(
       `Auction for item ${itemName} has been closed for ${jsonData.price}USDT. Winner: Client #${jsonData.bidderId}`
     );
     process.stdout.write("> ");

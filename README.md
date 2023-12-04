@@ -1,6 +1,7 @@
 ## Pending
- - Client code
- - OnOpen, OnBid, OnClose
+ - Input validation on CLI
+ - Handling of duplicate bid names
+ - 
 
 ## Flow
  - start DHT bootstrapper and swarm `server` -> start clients -> emit `new-peer` -> server acknowledges `new-peer` with `public-keys` -> client registers all `public-keys` except his own

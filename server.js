@@ -2,6 +2,7 @@ const DHT = require("hyperdht");
 const { DataStore } = require("./datastore");
 const Hyperswarm = require("hyperswarm");
 const crypto = require("crypto");
+const Logger = require("./logger");
 
 /** @type {DataStore} */
 let datastore;
@@ -36,7 +37,7 @@ class Server {
     });
     await dht.ready();
 
-    console.log("Starting swarm server...");
+    Logger.log("Starting swarm server...");
     const swarm = new Hyperswarm({ dht });
     const discovery = swarm.join(Buffer.alloc(32).fill("auction"), {
       server: true,
@@ -51,11 +52,11 @@ class Server {
     // Reset public key state since the server already reset
     await datastore.delete("public-keys");
 
-    console.log("Swarm server started.");
+    Logger.log("Swarm server started.");
   }
 
   async handleConnection(conn, info) {
-    console.log(
+    Logger.log(
       "Connection received from",
       conn.remotePublicKey.toString("hex")
     );
@@ -67,7 +68,7 @@ class Server {
   async handleData(data) {
     const jsonData = JSON.parse(data);
 
-    console.log("##DEBUG JSON Data received", jsonData);
+    Logger.debug("##DEBUG JSON Data received", jsonData);
 
     switch (jsonData.mode) {
       case "new-peer":
@@ -91,7 +92,7 @@ class Server {
     publicKeysArray.push(publicKeyString);
 
     await datastore.set("public-keys", JSON.stringify(publicKeysArray));
-    console.log("##DEBUG Broadcasting registered public keys...");
+    Logger.debug("##DEBUG Broadcasting registered public keys...");
 
     await this.broadcast(
       JSON.stringify({ mode: "public-keys", publicKeys: publicKeysArray })
