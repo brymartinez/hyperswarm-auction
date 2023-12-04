@@ -43,15 +43,28 @@ class Client {
   }
 
   async startServer(rpcSeed, dht) {
+    console.log("##DEBUG Starting RPC Server...");
     const rpc = new RPC({ seed: rpcSeed, dht });
     const rpcServer = rpc.createServer();
     await rpcServer.listen();
   }
 
   async startClient() {
+    console.log("##DEBUG Starting RPC Client...");
     // TODO - Where to get serverPubKey
     // const respRaw = await rpc.request(serverPubKey, "ping", payloadRaw);
   }
+
+  /*
+   *
+   * CLI Methods
+   *
+   */
+  async handleOpen(itemName, price) {}
+
+  async handleBid(itemName, price) {}
+
+  async handleClose(itemName) {}
 }
 
 module.exports = {

@@ -1,10 +1,12 @@
 const Hyperbee = require("hyperbee");
 
+/** @type {Hyperbee} */
 let hbee;
 /**
  * Instance of a datastore.
  *
  * @class DataStore
+ * @returns {DataStore}
  */
 class DataStore {
   constructor(defaultPath = "db/rpc-server") {
