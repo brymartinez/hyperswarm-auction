@@ -47,6 +47,10 @@ class Server {
 
     this.handleConnection = this.handleConnection.bind(this);
     swarm.on("connection", this.handleConnection);
+
+    // Reset public key state since the server already reset
+    await datastore.delete("public-keys");
+
     console.log("Swarm server started.");
   }
 
