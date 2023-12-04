@@ -195,11 +195,31 @@ class Client {
   /**
    *
    *
-   * @param {string} data
+   * @param {string} data of format { itemName: string, price: number, bidderId: string }
    * @memberof Client
    */
   async handleClose(data) {
     const jsonData = JSON.parse(data);
+    const itemKey = `${jsonData.itemName}_top_bid`;
+
+    const result = await datastore.get(itemKey);
+
+    if (!result) {
+      // Do nothing
+      return;
+    }
+
+    await datastore.delete(itemKey);
+
+    console.log(
+      `Client#${jsonData.bidderId} has bid ${jsonData.price}USDT for item "${jsonData.itemName}"`
+    );
+
+    if (jsonData.bidderId === this.rpcServerPublicKey) {
+      console.log("You are the WINNER!");
+    }
+
+    process.stdout.write("> ");
   }
 
   /*
@@ -210,10 +230,7 @@ class Client {
   async onOpen(itemName, price) {
     // { price: number, auctionerId: string }
     if (!this._hasOpenAuction) {
-      await datastore.set(
-        itemName,
-        JSON.stringify({ price, auctionerId: this.rpcServerPublicKey })
-      );
+      await datastore.set(`${itemName}_top_bid`, JSON.stringify({ price }));
 
       await this.broadcast("open", {
         itemName,
@@ -274,7 +291,31 @@ class Client {
       return;
     }
 
+    const itemKey = `${itemName}_top_bid`;
+    let result = await datastore.get(itemKey);
+
+    if (!result) {
+      console.error(`You have no open auctions for ${itemName}.`);
+      process.stdout.write("> ");
+      return;
+    }
+
+    const jsonData = JSON.parse(result);
+
+    await this.broadcast("close", {
+      itemName,
+      price: jsonData.price,
+      bidderId: jsonData.bidderId,
+    });
+
     this._hasOpenAuction = false;
+
+    await datastore.delete(itemKey);
+
+    console.log(
+      `Auction for item ${itemName} has been closed for ${jsonData.price}USDT. Winner: Client #${jsonData.bidderId}`
+    );
+    process.stdout.write("> ");
   }
 }
 
