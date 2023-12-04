@@ -74,6 +74,9 @@ class Server {
       case "new-peer":
         await this.onNewPeer(jsonData.publicKey);
         break;
+      case "updated-peer-list":
+        await this.onUpdatedPeerList(jsonData.publicKeys);
+        break;
       default:
         break;
     }
@@ -97,6 +100,11 @@ class Server {
     await this.broadcast(
       JSON.stringify({ mode: "public-keys", publicKeys: publicKeysArray })
     );
+  }
+
+  async onUpdatedPeerList(publicKeys) {
+    Logger.debug("##DEBUG Updating public keys...");
+    await datastore.set("public-keys", JSON.stringify(publicKeys));
   }
 
   async broadcast(message) {

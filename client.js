@@ -20,10 +20,8 @@ class Client {
     );
     /** @type {string} */
     this.rpcServerPublicKey = null;
-    /** @type {RPC.Client[]} */
-    this._clients = [];
-    /** @type {string} */
-    this._publicKeys = [];
+    /** @type {Map<string, RPC.Client>} */
+    this._clients = new Map();
     /** @type {boolean} */
     this._hasOpenAuction = false;
   }
@@ -71,7 +69,7 @@ class Client {
     this.handleData = this.handleData.bind(this);
     this.serverConnection.on("data", this.handleData);
     // Client already connected to swarm, announce new peer
-    Logger.debug("##DEBUG Writing new-peer...");
+    Logger.debug("##DEBUG Writing new-peer...", this.rpcServerPublicKey);
     this.serverConnection.write(
       JSON.stringify({
         mode: "new-peer",
@@ -96,21 +94,37 @@ class Client {
   }
 
   async onPublicKeys(publicKeysArray) {
-    await this.registerPublicKeys(publicKeysArray);
-  }
-
-  async registerPublicKeys(publicKeysArray) {
     for (const publicKey of publicKeysArray) {
       if (
         publicKey !== this.rpcServerPublicKey &&
-        !this._publicKeys.includes(publicKey)
+        !Array.from(this._clients.keys()).includes(publicKey)
       ) {
         const client = this.RPC.connect(Buffer.from(publicKey, "hex"));
         Logger.debug("##DEBUG Connected to client.");
-        this._clients.push(client);
-        this._publicKeys.push(publicKey);
+
+        Logger.debug("##DEBUG Registering client close event for", publicKey);
+
+        client.on("close", this.handleClientClose.bind(this, publicKey));
+        this._clients.set(publicKey, client);
       }
     }
+  }
+
+  handleClientClose(publicKey) {
+    Logger.debug("##DEBUG Close triggered for ", publicKey);
+
+    // Remove the client for the list and announce to swarm server that it has been removed
+    this._clients.delete(publicKey);
+    const publicKeys = Array.from(this._clients.keys());
+    publicKeys.push(this.rpcServerPublicKey);
+    Logger.debug("##DEBUG Sending updated key list", publicKeys);
+
+    this.serverConnection.write(
+      JSON.stringify({
+        mode: "updated-peer-list",
+        publicKeys,
+      })
+    );
   }
 
   /**
@@ -121,8 +135,13 @@ class Client {
    * @memberof Client
    */
   async broadcast(event, message) {
-    for (const client of this._clients) {
-      await client.request(event, Buffer.from(JSON.stringify(message)));
+    for (const [publicKey, client] of this._clients) {
+      await client
+        .request(event, Buffer.from(JSON.stringify(message)))
+        .catch((e) => {
+          Logger.error(e);
+          Logger.error("Encountered on", publicKey);
+        });
     }
   }
 
@@ -254,7 +273,7 @@ class Client {
 
     if (!result) {
       // Impossible case, since we process all broadcasted bids on handleBid() and initialize on handleOpen()
-      console.error(`Bid failed. Item does not exist.`);
+      Logger.error(`Bid failed. Item does not exist.`);
       process.stdout.write("> ");
       return;
     }
@@ -262,7 +281,7 @@ class Client {
     const jsonData = JSON.parse(result);
 
     if (jsonData.price >= price) {
-      console.error(`Bid failed. Expected > ${jsonData.price}, got ${price}`);
+      Logger.error(`Bid failed. Expected > ${jsonData.price}, got ${price}`);
       process.stdout.write("> ");
       return;
     }
@@ -287,7 +306,7 @@ class Client {
 
   async onClose(itemName) {
     if (!this._hasOpenAuction) {
-      console.error("You have no open auctions.");
+      Logger.error("You have no open auctions.");
       process.stdout.write("> ");
       return;
     }
@@ -296,7 +315,7 @@ class Client {
     let result = await datastore.get(itemKey);
 
     if (!result) {
-      console.error(`You have no open auctions for ${itemName}.`);
+      Logger.error(`You have no open auctions for ${itemName}.`);
       process.stdout.write("> ");
       return;
     }
