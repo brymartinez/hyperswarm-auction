@@ -1,7 +1,7 @@
 const RPC = require("@hyperswarm/rpc");
 const DHT = require("hyperdht");
 const crypto = require("crypto");
-const DataStore = require("./datastore");
+const { DataStore } = require("./datastore");
 
 /**
  * This acts as both RPC client and server.
@@ -40,6 +40,8 @@ class Client {
       rpcSeed = crypto.randomBytes(32);
       await datastore.set("rpc-seed", rpcSeed);
     }
+
+    await this.startServer(rpcSeed, dht);
   }
 
   async startServer(rpcSeed, dht) {

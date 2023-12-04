@@ -1,4 +1,5 @@
 const Hyperbee = require("hyperbee");
+const Hypercore = require("hypercore");
 
 /** @type {Hyperbee} */
 let hbee;
@@ -6,7 +7,6 @@ let hbee;
  * Instance of a datastore.
  *
  * @class DataStore
- * @returns {DataStore}
  */
 class DataStore {
   constructor(defaultPath = "db/rpc-server") {
